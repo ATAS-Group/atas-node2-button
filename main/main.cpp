@@ -1,14 +1,4 @@
-#include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_system.h"
-#include "driver/gpio.h"
-#include <esp_log.h>
-#include "sdkconfig.h"
-
-#define BUTTON_GPIO GPIO_NUM_4
-int buttonIsPressedCounter = 0;
-bool buttonIsPressed = false;
+#include "main.h"
 
 void isr_button_pressed(void *args)
 {
@@ -31,7 +21,7 @@ void task_button(void *pvParameter)
   gpio_install_isr_service(0);                  //Start Interrupt Service Routine service
   gpio_isr_handler_add(BUTTON_GPIO, isr_button_pressed, NULL); //Add handler of interrupt
   printf("Interrupt configured\n");
-
+  
   //Wait
   while (1)
   {
@@ -39,17 +29,28 @@ void task_button(void *pvParameter)
 	  	if(buttonIsPressed == 1){
 			buttonIsPressedCounter++;
 			// ~3 seconds pressed...
-			if( buttonIsPressedCounter >= 3){
+			if( buttonIsPressedCounter >= 30){
 	  			printf("Alarm triggered, counter: %d\n",buttonIsPressedCounter);
+				// sound not enabled
+				if(!soundhandler->getState()){
+				    // enable sound
+				    soundhandler->enable();
+				}
 		  	}	
 	  	} else{
 			buttonIsPressedCounter = 0;
+			// sound enabled
+			if(soundhandler->getState()){
+			    // mute sound
+			    soundhandler->mute();
+			}
 	 	}
-		vTaskDelay(1000/portTICK_PERIOD_MS);
+		// 100ms
+		vTaskDelay(100/portTICK_PERIOD_MS);
   }
 }
 
-void app_main()
+extern "C" void app_main()
 {
   xTaskCreate(&task_button, "button", 2048, NULL, 5, NULL);
 }
